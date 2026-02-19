@@ -14,11 +14,11 @@ internal sealed class Analyzer(Compilation compilation)
     {
         var diags = ImmutableArray.CreateBuilder<Diagnostic>();
 
-        ITypeSymbol? groupOptions = null;
-        ITypeSymbol? permOptions = null;
+        ITypeSymbol? optionsType = null;
         var sawGeneric = false;
 
         var allGroups = new List<GroupDef>();
+        var includeGroupAsPermissionGlobal = ResolveIncludeGroupAsPermission();
 
         foreach (var reg in registrars)
         {
@@ -27,17 +27,14 @@ internal sealed class Analyzer(Compilation compilation)
             {
                 sawGeneric = true;
                 var @interface = reg.Interface!;
-                var g = @interface.TypeArguments[0];
-                var p = @interface.TypeArguments[1];
-                if (groupOptions is null)
+                var options = @interface.TypeArguments[0];
+                if (optionsType is null)
                 {
-                    groupOptions = g;
-                    permOptions = p;
+                    optionsType = options;
                 }
                 else
                 {
-                    if (!SymbolEqualityComparer.Default.Equals(groupOptions, g) ||
-                        !SymbolEqualityComparer.Default.Equals(permOptions!, p))
+                    if (!SymbolEqualityComparer.Default.Equals(optionsType, options))
                     {
                         diags.Add(Diagnostic.Create(Diagnostics.InconsistentOptionsTypes,
                             reg.Symbol.Locations.FirstOrDefault()));
@@ -59,20 +56,17 @@ internal sealed class Analyzer(Compilation compilation)
             foreach (var decl in registerMethod.DeclaringSyntaxReferences)
             {
                 if (decl.GetSyntax() is not MethodDeclarationSyntax mds) continue;
-                var groups = ParseRegisterBody(mds);
+                var groups = ParseRegisterBody(mds, includeGroupAsPermissionGlobal);
                 allGroups.AddRange(groups);
             }
         }
 
-        var groupProps = sawGeneric
-            ? CollectOptionProps(groupOptions as INamedTypeSymbol)
-            : ImmutableArray<OptionProp>.Empty;
-        var permProps = sawGeneric
-            ? CollectOptionProps(permOptions as INamedTypeSymbol)
+        var optionProps = sawGeneric
+            ? CollectOptionProps(optionsType as INamedTypeSymbol)
             : ImmutableArray<OptionProp>.Empty;
 
         return new Model(compilation, allGroups.ToImmutableArray(),
-            diags.ToImmutable(), false, groupProps, permProps);
+            diags.ToImmutable(), false, optionProps, optionProps);
     }
 
     private static ImmutableArray<OptionProp> CollectOptionProps(INamedTypeSymbol? optionType)
@@ -100,8 +94,52 @@ internal sealed class Analyzer(Compilation compilation)
         return list.ToImmutableArray();
     }
 
-    private IEnumerable<GroupDef> ParseRegisterBody(MethodDeclarationSyntax methodSyntax)
+    private bool ResolveIncludeGroupAsPermission()
     {
+        const string attrType = "FluentPermissions.Core.Abstractions.PermissionGenerationOptionsAttribute";
+        foreach (var attr in compilation.Assembly.GetAttributes())
+        {
+            if (!string.Equals(attr.AttributeClass?.ToDisplayString(), attrType, StringComparison.Ordinal))
+                continue;
+            if (attr.ConstructorArguments.Length == 1 && attr.ConstructorArguments[0].Value is bool b)
+                return b;
+            return true;
+        }
+
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var sm = compilation.GetSemanticModel(tree);
+            var root = tree.GetRoot();
+            var lists = root.DescendantNodes().OfType<AttributeListSyntax>();
+            foreach (var list in lists)
+            {
+                if (list.Target?.Identifier.Text != "assembly") continue;
+                foreach (var attr in list.Attributes)
+                {
+                    var symbol = sm.GetSymbolInfo(attr).Symbol as IMethodSymbol;
+                    var attrName = symbol?.ContainingType.ToDisplayString() ?? attr.Name.ToString();
+                    if (!string.Equals(attrName, attrType, StringComparison.Ordinal) &&
+                        !attrName.EndsWith(".PermissionGenerationOptions", StringComparison.Ordinal) &&
+                        !attrName.EndsWith(".PermissionGenerationOptionsAttribute", StringComparison.Ordinal) &&
+                        !string.Equals(attrName, "PermissionGenerationOptions", StringComparison.Ordinal) &&
+                        !string.Equals(attrName, "PermissionGenerationOptionsAttribute", StringComparison.Ordinal))
+                        continue;
+
+                    var arg = attr.ArgumentList?.Arguments.FirstOrDefault();
+                    if (arg is null) return true;
+                    var val = sm.GetConstantValue(arg.Expression);
+                    if (val.HasValue && val.Value is bool b) return b;
+                    return true;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private IEnumerable<GroupDef> ParseRegisterBody(MethodDeclarationSyntax methodSyntax, bool includeGroupAsPermission)
+    {
+        includeGroupAsPermission = ResolveIncludeGroupAsPermissionFromClass(methodSyntax, includeGroupAsPermission);
         var semanticModel = compilation.GetSemanticModel(methodSyntax.SyntaxTree);
         if (methodSyntax.Body is null && methodSyntax.ExpressionBody is null)
             yield break;
@@ -122,7 +160,7 @@ internal sealed class Analyzer(Compilation compilation)
             var calls = FlattenCalls(invRoot).ToList();
             if (!calls.Any(c => c.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "DefineGroup" }))
                 continue;
-            ProcessInvocationChain(GetOrAddGroup, null, calls, semanticModel);
+            ProcessInvocationChain(GetOrAddGroup, null, calls, semanticModel, ref includeGroupAsPermission);
         }
 
         foreach (var g in groupsRoot)
@@ -137,7 +175,7 @@ internal sealed class Analyzer(Compilation compilation)
                 var existing =
                     groupsRoot.FirstOrDefault(g => string.Equals(g.LogicalName, name, StringComparison.Ordinal));
                 if (existing is not null) return existing;
-                var created = new GroupDef(name, null, null, props, [], []);
+                var created = new GroupDef(name, null, null, includeGroupAsPermission, props, [], []);
                 groupsRoot.Add(created);
                 return created;
             }
@@ -146,7 +184,7 @@ internal sealed class Analyzer(Compilation compilation)
                 var existing =
                     parent.Children.FirstOrDefault(g => string.Equals(g.LogicalName, name, StringComparison.Ordinal));
                 if (existing is not null) return existing;
-                var created = new GroupDef(name, null, null, props, [], []);
+                var created = new GroupDef(name, null, null, includeGroupAsPermission, props, [], []);
                 parent.Children.Add(created);
                 return created;
             }
@@ -167,7 +205,9 @@ internal sealed class Analyzer(Compilation compilation)
             if (p.TypeArguments.Length != 1) continue;
             var targ = p.TypeArguments[0];
             var targName = targ.ToDisplayString();
-            if (targName.IndexOf("PermissionGroupBuilder", StringComparison.Ordinal) < 0) continue;
+            if (targName.IndexOf("PermissionBuilder", StringComparison.Ordinal) < 0 &&
+                targName.IndexOf("PermissionGroupBuilder", StringComparison.Ordinal) < 0)
+                continue;
             paramIndex = i;
             break;
         }
@@ -180,7 +220,7 @@ internal sealed class Analyzer(Compilation compilation)
         }
 
         // 回退：仅按语法寻找调用中的 lambda 参数（通常为最后一个）
-        // 这样即便语义模型未能解析到 Action<PermissionGroupBuilder<...>> 也能继续遍历组内定义。
+        // 这样即便语义模型未能解析到 Action<PermissionBuilder<...>> 也能继续遍历组内定义。
         var fallbacks = call.ArgumentList.Arguments;
         for (var i = fallbacks.Count - 1; i >= 0; i--)
         {
@@ -193,7 +233,8 @@ internal sealed class Analyzer(Compilation compilation)
     }
 
     private void ProcessBuilderLambda(GroupDef current, ArgumentSyntax lambdaArg, SemanticModel semanticModel,
-        Func<GroupDef?, string, Dictionary<string, ConstValue>, GroupDef> getOrAddGroup)
+        Func<GroupDef?, string, Dictionary<string, ConstValue>, GroupDef> getOrAddGroup,
+        ref bool includeGroupAsPermission)
     {
         var expr = lambdaArg.Expression;
         var body = expr switch
@@ -213,7 +254,8 @@ internal sealed class Analyzer(Compilation compilation)
                     if (stmt.Expression is InvocationExpressionSyntax inv)
                     {
                         var calls = FlattenCalls(inv);
-                        ProcessInvocationChain(getOrAddGroup, current, calls, semanticModel);
+                        ProcessInvocationChain(getOrAddGroup, current, calls, semanticModel,
+                            ref includeGroupAsPermission);
                     }
 
                 break;
@@ -223,7 +265,8 @@ internal sealed class Analyzer(Compilation compilation)
                 if (exprBody is InvocationExpressionSyntax inv)
                 {
                     var calls = FlattenCalls(inv);
-                    ProcessInvocationChain(getOrAddGroup, current, calls, semanticModel);
+                    ProcessInvocationChain(getOrAddGroup, current, calls, semanticModel,
+                        ref includeGroupAsPermission);
                 }
 
                 break;
@@ -235,7 +278,8 @@ internal sealed class Analyzer(Compilation compilation)
         Func<GroupDef?, string, Dictionary<string, ConstValue>, GroupDef> getOrAddGroup,
         GroupDef? current,
         IEnumerable<InvocationExpressionSyntax> calls,
-        SemanticModel sm)
+        SemanticModel sm,
+        ref bool includeGroupAsPermission)
     {
         var stack = new Stack<GroupDef>();
         if (current is not null) stack.Push(current);
@@ -279,7 +323,8 @@ internal sealed class Analyzer(Compilation compilation)
 
                     if (builderLambdaArg is not null)
                     {
-                        ProcessBuilderLambda(grp, builderLambdaArg, sm, getOrAddGroup);
+                        ProcessBuilderLambda(grp, builderLambdaArg, sm, getOrAddGroup,
+                            ref includeGroupAsPermission);
                         if (stack.Count > 0) stack.Pop();
                     }
 
@@ -347,6 +392,28 @@ internal sealed class Analyzer(Compilation compilation)
         }
 
         return (logicalName, displayName, description, props);
+    }
+
+    private static bool ResolveIncludeGroupAsPermissionFromClass(MethodDeclarationSyntax methodSyntax, bool fallback)
+    {
+        var cls = methodSyntax.Ancestors().OfType<ClassDeclarationSyntax>().FirstOrDefault();
+        if (cls is null) return fallback;
+
+        foreach (var attr in cls.AttributeLists.SelectMany(a => a.Attributes))
+        {
+            var rawName = attr.Name.ToString();
+            if (rawName.IndexOf("PermissionGenerationOptions", StringComparison.Ordinal) < 0)
+                continue;
+            var rawArgs = attr.ArgumentList?.ToString() ?? string.Empty;
+            if (rawArgs.IndexOf("false", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            if (rawArgs.IndexOf("true", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+            }
+
+            return true;
+        }
+
+        return fallback;
     }
 
     private static IEnumerable<InvocationExpressionSyntax> FlattenCalls(InvocationExpressionSyntax root)
@@ -420,6 +487,12 @@ internal sealed class Analyzer(Compilation compilation)
     {
         var cv = GetConstValue(semanticModel, expr);
         return cv is { Kind: ConstKind.String, Value: string s } ? s : null;
+    }
+
+    private static bool? GetConstBool(SemanticModel semanticModel, ExpressionSyntax expr)
+    {
+        var cv = GetConstValue(semanticModel, expr);
+        return cv is { Kind: ConstKind.Bool, Value: bool b } ? b : null;
     }
 
     private static ConstValue? GetConstValue(SemanticModel semanticModel, ExpressionSyntax expr)

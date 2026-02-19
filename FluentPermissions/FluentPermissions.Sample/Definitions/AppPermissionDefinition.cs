@@ -3,9 +3,10 @@ using FluentPermissions.Core.Builder;
 
 namespace FluentPermissions.Sample.Definitions;
 
-public class AppPermissionDefinition : IPermissionRegistrar<SampleGroupOptions, SamplePermissionOptions>
+[PermissionGenerationOptions(false)]
+public class AppPermissionDefinition : IPermissionRegistrar<SampleOptions>
 {
-    public void Register(PermissionBuilder<SampleGroupOptions, SamplePermissionOptions> builder)
+    public void Register(PermissionBuilder<SampleOptions> builder)
     {
         builder
             .DefineGroup("System", "系统", "核心系统设置", system =>

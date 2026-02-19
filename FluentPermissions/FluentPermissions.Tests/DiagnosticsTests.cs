@@ -16,22 +16,20 @@ public class DiagnosticsTests
 
                                namespace DemoDiag;
 
-                               public class G1 : PermissionOptionsBase { }
-                               public class P1 : PermissionOptionsBase { }
-                               public class G2 : PermissionOptionsBase { }
-                               public class P2 : PermissionOptionsBase { }
+                               public class O1 : PermissionOptionsBase { }
+                               public class O2 : PermissionOptionsBase { }
 
-                               public sealed class Reg1 : IPermissionRegistrar<G1, P1>
+                               public sealed class Reg1 : IPermissionRegistrar<O1>
                                {
-                                   public void Register(PermissionBuilder<G1, P1> builder)
+                                   public void Register(PermissionBuilder<O1> builder)
                                    {
                                        builder.DefineGroup("A", _ => { });
                                    }
                                }
 
-                               public sealed class Reg2 : IPermissionRegistrar<G2, P2>
+                               public sealed class Reg2 : IPermissionRegistrar<O2>
                                {
-                                   public void Register(PermissionBuilder<G2, P2> builder)
+                                   public void Register(PermissionBuilder<O2> builder)
                                    {
                                        builder.DefineGroup("B", _ => { });
                                    }
@@ -57,10 +55,9 @@ public class DiagnosticsTests
 
                                namespace DemoWarn;
 
-                               public class G : PermissionOptionsBase { }
-                               public class P : PermissionOptionsBase { }
+                               public class O : PermissionOptionsBase { }
 
-                               public sealed class BadRegistrar : IPermissionRegistrar<G, P>
+                               public sealed class BadRegistrar : IPermissionRegistrar<O>
                                {
                                    // Intentionally missing Register method
                                }

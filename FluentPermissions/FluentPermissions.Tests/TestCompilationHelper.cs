@@ -13,7 +13,7 @@ internal static class TestCompilationHelper
         MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
         MetadataReference.CreateFromFile(typeof(ImmutableArray).Assembly.Location),
         // Reference the FluentPermissions.Core assembly so registrar code can compile
-        MetadataReference.CreateFromFile(typeof(Core.Builder.PermissionBuilder<,>).Assembly.Location)
+        MetadataReference.CreateFromFile(typeof(Core.Builder.PermissionBuilder<>).Assembly.Location)
     ];
 
     public static CSharpCompilation CreateCompilation(string assemblyName, params string[] sources)

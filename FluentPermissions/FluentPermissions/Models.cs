@@ -53,6 +53,7 @@ internal sealed class GroupDef(
     string logicalName,
     string? displayName,
     string? description,
+    bool includeSelfAsPermission = true,
     Dictionary<string, ConstValue>? props = null,
     List<PermissionDef>? permissions = null,
     List<GroupDef>? children = null)
@@ -60,6 +61,7 @@ internal sealed class GroupDef(
     public string LogicalName { get; } = logicalName;
     public string? DisplayName { get; set; } = displayName;
     public string? Description { get; set; } = description;
+    public bool IncludeSelfAsPermission { get; set; } = includeSelfAsPermission;
 
     public Dictionary<string, ConstValue> Props { get; } =
         props ?? new Dictionary<string, ConstValue>(StringComparer.Ordinal);

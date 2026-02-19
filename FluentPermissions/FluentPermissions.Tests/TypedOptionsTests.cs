@@ -6,7 +6,7 @@ namespace FluentPermissions.Tests;
 public class TypedOptionsTests
 {
     [Fact]
-    public void Group_And_Permission_Typed_Props_Appear_In_Models()
+    public void Descriptor_Model_Is_Generated()
     {
         const string sources = """
 
@@ -15,20 +15,16 @@ public class TypedOptionsTests
 
                                namespace DemoAppOpts;
 
-                               public class TestGroupOptions : PermissionOptionsBase
+                               public class TestOptions : PermissionOptionsBase
                                {
                                    public int Order { get; set; }
                                    public string? Icon { get; set; }
-                               }
-
-                               public class TestPermissionOptions : PermissionOptionsBase
-                               {
                                    public bool Critical { get; set; }
                                }
 
-                               public sealed class Registrar : IPermissionRegistrar<TestGroupOptions, TestPermissionOptions>
+                               public sealed class Registrar : IPermissionRegistrar<TestOptions>
                                {
-                                   public void Register(PermissionBuilder<TestGroupOptions, TestPermissionOptions> builder)
+                                   public void Register(PermissionBuilder<TestOptions> builder)
                                    {
                                        builder
                                            .DefineGroup("System", "系统", g =>
@@ -48,8 +44,17 @@ public class TypedOptionsTests
         var models = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("FluentPermissions.g.Models.cs"));
         var text = models.GetText().ToString();
 
-        Assert.Contains("public int Order { get; }", text);
-        Assert.Contains("public string? Icon { get; }", text);
-        Assert.Contains("public bool Critical { get; }", text);
+        Assert.Contains("public sealed class PermissionDescriptor", text);
+        Assert.Contains("public string Code { get; }", text);
+        Assert.Contains("public string Parent { get; }", text);
+        Assert.Contains("public string DisplayOrName => DisplayName ?? Name;", text);
+        Assert.Contains("public bool IsLeaf { get; }", text);
+
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var appText = app.GetText().ToString();
+        Assert.Contains("public static readonly global::System.Collections.Generic.IReadOnlyDictionary<string, PermissionDescriptor> ByCode", appText);
+        Assert.Contains("public static readonly global::System.Collections.Generic.IReadOnlyList<string> AllCodes", appText);
+        Assert.Contains("public static global::System.Collections.Generic.IReadOnlyList<string> GetAllCodes() => AllCodes;", appText);
+        Assert.DoesNotContain("PermissionTreeNode", appText);
     }
 }

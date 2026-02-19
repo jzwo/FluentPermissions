@@ -15,7 +15,7 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor InconsistentOptionsTypes = new(
         "FP0002",
         "Inconsistent options type arguments",
-        "All registrars must use the same TGroupOptions and TPermissionOptions generic arguments",
+        "All registrars must use the same TOptions generic argument",
         "SourceGen",
         DiagnosticSeverity.Error,
         true);

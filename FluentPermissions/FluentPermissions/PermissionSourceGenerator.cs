@@ -35,7 +35,7 @@ public sealed class PermissionSourceGenerator : IIncrementalGenerator
             }
 
             spc.AddSource("FluentPermissions.g.Models.cs", SourceBuilders.BuildModels(models));
-            spc.AddSource("AppPermissions.g.cs", SourceBuilders.BuildApp(models));
+            spc.AddSource("Permissions.g.cs", SourceBuilders.BuildApp(models));
         });
     }
 
@@ -45,7 +45,7 @@ public sealed class PermissionSourceGenerator : IIncrementalGenerator
         var model = ctx.SemanticModel;
         if (model.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol symbol) return null;
 
-        const string genericSig = "FluentPermissions.Core.Abstractions.IPermissionRegistrar<TGroupOptions, TPermissionOptions>";
+        const string genericSig = "FluentPermissions.Core.Abstractions.IPermissionRegistrar<TOptions>";
         const string nonGenericSig = "FluentPermissions.Core.Abstractions.IPermissionRegistrar";
         var generic = symbol.AllInterfaces.FirstOrDefault(i => i.OriginalDefinition.ToDisplayString() == genericSig);
         if (generic is not null)

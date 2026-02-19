@@ -6,7 +6,7 @@ namespace FluentPermissions.Tests;
 public class DeepNestingDriverTests
 {
     [Fact]
-    public void Deep_Nesting_Generates_Keys_And_Classes()
+    public void Deep_Nesting_Generates_Flat_Keys()
     {
         const string sources = """
 
@@ -15,12 +15,11 @@ public class DeepNestingDriverTests
 
                                namespace DemoDeep;
 
-                               public class G : PermissionOptionsBase { }
-                               public class P : PermissionOptionsBase { }
+                               public class O : PermissionOptionsBase { }
 
-                               public sealed class Registrar : IPermissionRegistrar<G, P>
+                               public sealed class Registrar : IPermissionRegistrar<O>
                                {
-                                   public void Register(PermissionBuilder<G, P> builder)
+                                   public void Register(PermissionBuilder<O> builder)
                                    {
                                        builder
                                            .DefineGroup("A", a =>
@@ -43,13 +42,10 @@ public class DeepNestingDriverTests
         var driver = TestCompilationHelper.CreateDriver();
         var result = driver.RunGenerators(compilation).GetRunResult();
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
         var appText = app.GetText().ToString();
 
-        Assert.Contains("public const string A_A1_A1a_X = \"A_A1_A1a_X\";", appText);
-        Assert.Contains("public const string B_Y = \"B_Y\";", appText);
-        Assert.Contains("public static class A", appText);
-        Assert.Contains("public static class A1", appText);
-        Assert.Contains("public static class A1a", appText);
+        Assert.Contains("public const string A_A1_A1a_X = \"APP:A:A1:A1a:X\";", appText);
+        Assert.Contains("public const string B_Y = \"APP:B:Y\";", appText);
     }
 }

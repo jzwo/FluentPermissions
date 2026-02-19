@@ -2,61 +2,60 @@
 
 [简体中文](./README.zh-CN.md)
 
-A Roslyn incremental source generator for modeling permissions in .NET. Define permission groups and items with a
-concise fluent DSL, and get strong-typed accessors plus immutable runtime models generated at compile time.
+FluentPermissions is a Roslyn incremental source generator for permission modeling in .NET.
+You define permissions with a fluent DSL, and get compile-time generated constants + read-only query APIs.
 
-What you get:
+## What It Generates
 
-- Strong-typed `AppPermissions` entry (nested navigation + flat Keys constants)
-- Runtime models `PermissionGroupInfo` / `PermissionItemInfo` (including your strongly-typed option properties)
-- Stable keys and immutable collections (IReadOnlyList / IReadOnlyDictionary)
+- Namespace: `$(AssemblyName).Security`
+- Entry type: `public static partial class Permissions`
+- Flat permission code constants
+- Read-only descriptors: `Permissions.All`
+- Common lookup/query members:
+  - `Permissions.ByCode`
+  - `Permissions.AllCodes`, `Permissions.GetAllCodes()`
+  - `Permissions.Contains(code)`
+  - `Permissions.TryGet(code, out descriptor)`
+  - `Permissions.GetByCode(code)`
+  - `Permissions.GetChildren(parentCode)`
+  - `Permissions.GetLeaves()`
 
-Highlights:
+## Repository Layout
 
-- Lambda-based DSL: DefineGroup(..., builder => { ... })
-- Group-level metadata via `WithOptions(...)`; permission metadata in `AddPermission(...)`
-- Strongly-typed Options (no dictionaries), captured at compile time
-- Generated collections/dictionaries are read-only; data is built once in `AppPermissions` static constructor
+- `FluentPermissions.Core` (`netstandard2.0`): contracts + fluent builder DSL
+- `FluentPermissions` (`netstandard2.0`): source generator
+- `FluentPermissions.Sample` (`net9.0`): usage sample
+- `FluentPermissions.Tests` (`net9.0`): generator tests
 
-## Repository layout
+## Quick Start
 
-- FluentPermissions.Core (netstandard2.0):
-    - Contracts and fluent builder types (runtime models are generated)
-- FluentPermissions (source generator, netstandard2.0):
-    - Emits models and `AppPermissions` under `$(AssemblyName).Generated`
-- FluentPermissions.Sample (net9.0):
-    - Shows how to define and consume
-- FluentPermissions.Tests (net9.0):
-    - Covers structure, options, immutability, key format, etc.
+1. Add references
 
-## Quick start
+- Reference `FluentPermissions.Core` in your app project
+- Add `FluentPermissions` as source generator (analyzer/NuGet)
 
-1) Reference & install
-
-- Reference `FluentPermissions.Core` in the consumer project
-- Add the `FluentPermissions` source generator (as analyzer or via NuGet)
-
-2) Define options (strongly-typed)
+2. Define a single options type
 
 ```csharp
-public sealed class SampleGroupOptions : PermissionOptionsBase
+using FluentPermissions.Core.Abstractions;
+
+public sealed class SampleOptions : PermissionOptionsBase
 {
     public int DisplayOrder { get; set; }
     public string? Icon { get; set; }
-}
-
-public sealed class SamplePermissionOptions : PermissionOptionsBase
-{
     public bool IsHighRisk { get; set; }
 }
 ```
 
-3) Implement a registrar (lambda-only)
+3. Implement registrar
 
 ```csharp
-public class AppPermissionDefinition : IPermissionRegistrar<SampleGroupOptions, SamplePermissionOptions>
+using FluentPermissions.Core.Abstractions;
+using FluentPermissions.Core.Builder;
+
+public sealed class AppPermissionDefinition : IPermissionRegistrar<SampleOptions>
 {
-    public void Register(PermissionBuilder<SampleGroupOptions, SamplePermissionOptions> builder)
+    public void Register(PermissionBuilder<SampleOptions> builder)
     {
         builder
             .DefineGroup("System", "System", "Core system settings", system =>
@@ -70,18 +69,11 @@ public class AppPermissionDefinition : IPermissionRegistrar<SampleGroupOptions, 
                 system.DefineGroup("Users", "User management", users =>
                 {
                     users.AddPermission("Create", "Create user");
-                    users.AddPermission("Delete", "Delete user", "High risk action", o => o.IsHighRisk = true);
-                });
-
-                system.DefineGroup("Roles", "Role management", roles =>
-                {
-                    roles.AddPermission("Create", "Create role");
-                    roles.AddPermission("Assign", "Assign role");
+                    users.AddPermission("Delete", "Delete user", "High risk", o => o.IsHighRisk = true);
                 });
             })
             .DefineGroup("Reports", reports =>
             {
-                reports.WithOptions(o => { o.DisplayOrder = 20; o.Icon = "fa-chart"; });
                 reports.AddPermission("View", "View reports");
                 reports.AddPermission("Export", "Export reports");
             });
@@ -89,65 +81,57 @@ public class AppPermissionDefinition : IPermissionRegistrar<SampleGroupOptions, 
 }
 ```
 
-4) Consume the generated API (namespace: `YourAssemblyName.Generated`)
+4. Consume generated API
 
 ```csharp
-using YourAssemblyName.Generated;
+using MyApp.Security;
 
-var system = AppPermissions.System.Group;                 // PermissionGroupInfo
-var users  = AppPermissions.System.Users.Group;           // PermissionGroupInfo
-var create = AppPermissions.System.Users.Create;          // PermissionItemInfo
+var code = Permissions.System_Users_Create; // APP:System:Users:Create
 
-Console.WriteLine(create.Key);                            // System_Users_Create
-Console.WriteLine(AppPermissions.Keys.System_Users_Create); // System_Users_Create
+if (Permissions.TryGet(code, out var descriptor))
+{
+    Console.WriteLine(descriptor!.DisplayOrName);
+    Console.WriteLine(descriptor.Parent);
+}
 
-// Immutable dictionaries/collections
-var group = AppPermissions.GroupsByKey["System"];        // underscore keys
-var perm  = AppPermissions.PermsByKey["System_Users_Create"];
+foreach (var c in Permissions.GetAllCodes())
+    Console.WriteLine(c);
 ```
 
-## Emitted artifacts & conventions
+## Global Generation Option (Attribute)
 
-Namespace: `$(AssemblyName).Generated`
+Use `PermissionGenerationOptionsAttribute` to control whether groups themselves are emitted as permission items.
 
-- `internal static class PermissionModels`
-    - `internal sealed class PermissionGroupInfo`
-        - Key (string, underscore), ParentKey (string?)
-        - LogicalName, DisplayName (defaults to LogicalName), Description (defaults to string.Empty)
-        - Your group option properties (strongly-typed)
-        - SubGroups: IReadOnlyList<PermissionGroupInfo>
-        - Permissions: IReadOnlyList<PermissionItemInfo>
-    - `internal sealed class PermissionItemInfo`
-        - Key (string, underscore), GroupKey (string, underscore)
-        - LogicalName, DisplayName (defaults to LogicalName), Description (defaults to string.Empty)
-        - Your permission option properties (strongly-typed)
+- Default: `true`
+- If `false`:
+  - group descriptors are not emitted into `Permissions.All`
+  - group constants are not emitted
+  - only leaf permission constants/descriptors remain
 
-- `internal static class AppPermissions`
-    - Nested classes mirror your DSL (e.g., `AppPermissions.System.Users.Create`)
-    - `public static class Keys`: constants for each group & permission, values are underscore keys
-    - `GroupsByKey` / `PermsByKey`: IReadOnlyDictionary<string, ...>
-    - `GetAllGroups()`: IReadOnlyList<PermissionGroupInfo>
+You can place it on assembly or registrar class.
 
-Defaults & behavior:
+```csharp
+using FluentPermissions.Core.Abstractions;
 
-- Key/GroupKey/ParentKey use underscore format (`A_B_C`)
-- DisplayName defaults to LogicalName, Description defaults to `string.Empty`
-- Models, collections, and dictionaries are read-only
-
-## Inspect generated files (optional)
-
-In the consuming project you can enable generated file output:
-
-```xml
-<PropertyGroup>
-  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-  <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\generated</CompilerGeneratedFilesOutputPath>
-</PropertyGroup>
+[assembly: PermissionGenerationOptions(false)]
+// or: [PermissionGenerationOptions(false)] on registrar class
 ```
+
+## Generated Model
+
+`PermissionDescriptor`:
+
+- `Code`: full code (e.g. `APP:System:Users:Create`)
+- `Name`: logical name (e.g. `Create`)
+- `DisplayName`: optional display name
+- `Parent`: parent code (e.g. `APP:System:Users`)
+- `IsLeaf`: whether this is a leaf permission
+- `IsGroup => !IsLeaf`
+- `DisplayOrName => DisplayName ?? Name`
 
 ## Notes
 
-- Analyzer checks include consistency (e.g., FP0002: all registrars must use the same generic arguments).
+- Analyzer diagnostics include consistency checks for generic options across registrars (`FP0002`).
 
 ## License
 

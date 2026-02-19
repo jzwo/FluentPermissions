@@ -15,20 +15,19 @@ public class MultiRegistrarTests
 
                                namespace DemoMulti;
 
-                               public class G : PermissionOptionsBase { public int Order { get; set; } public string? Icon { get; set; } }
-                               public class P : PermissionOptionsBase { public bool Critical { get; set; } }
+                               public class O : PermissionOptionsBase { public int Order { get; set; } public string? Icon { get; set; } public bool Critical { get; set; } }
 
-                               public sealed class SalesReg : IPermissionRegistrar<G, P>
+                               public sealed class SalesReg : IPermissionRegistrar<O>
                                {
-                                   public void Register(PermissionBuilder<G, P> builder)
+                                   public void Register(PermissionBuilder<O> builder)
                                    {
                                        builder.DefineGroup("Sales", s => { s.WithOptions(o => { o.Order = 100; o.Icon = "fa-dollar"; }); s.AddPermission("View", "View"); });
                                    }
                                }
 
-                               public sealed class HrReg : IPermissionRegistrar<G, P>
+                               public sealed class HrReg : IPermissionRegistrar<O>
                                {
-                                   public void Register(PermissionBuilder<G, P> builder)
+                                   public void Register(PermissionBuilder<O> builder)
                                    {
                                        builder.DefineGroup("HR", h => { h.AddPermission("Edit", "Edit", o => o.Critical = true); });
                                    }
@@ -40,11 +39,11 @@ public class MultiRegistrarTests
         var driver = TestCompilationHelper.CreateDriver();
         var result = driver.RunGenerators(compilation).GetRunResult();
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
         var appText = app.GetText().ToString();
 
-        Assert.Contains("public const string Sales_View = \"Sales_View\";", appText);
-        Assert.Contains("public const string HR_Edit = \"HR_Edit\";", appText);
-        Assert.Contains("fa-dollar", appText);
+        Assert.Contains("public const string Sales_View = \"APP:Sales:View\";", appText);
+        Assert.Contains("public const string HR_Edit = \"APP:HR:Edit\";", appText);
+        Assert.Contains("new PermissionDescriptor(\"APP:Sales:View\"", appText);
     }
 }

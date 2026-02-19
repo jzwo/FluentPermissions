@@ -15,12 +15,11 @@ public class StringEscapingTests
 
                                namespace DemoEscape;
 
-                               public class G : PermissionOptionsBase { }
-                               public class P : PermissionOptionsBase { }
+                               public class O : PermissionOptionsBase { }
 
-                               public sealed class EscReg : IPermissionRegistrar<G, P>
+                               public sealed class EscReg : IPermissionRegistrar<O>
                                {
-                                   public void Register(PermissionBuilder<G, P> builder)
+                                   public void Register(PermissionBuilder<O> builder)
                                    {
                                        builder.DefineGroup("Esc", @"He said: ""Hi""", _ => { });
                                        // 包含换行符的显示名，验证 \n 转义
@@ -35,11 +34,11 @@ public class StringEscapingTests
         var driver = TestCompilationHelper.CreateDriver();
         var result = driver.RunGenerators(compilation).GetRunResult();
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
         var appText = app.GetText().ToString();
 
         Assert.Contains("\\\"Hi\\\"", appText); // 引号转义
         Assert.Contains("\\n", appText); // 换行符转义（来自组显示名）
-        Assert.Contains("""Path", "Path", "C:\\""", appText); // 反斜杠转义（前缀片段，避免结尾歧义）
+        Assert.Contains("C:\\\\\\\\temp\\\\\\\\file", appText); // 反斜杠转义
     }
 }
