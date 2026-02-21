@@ -50,7 +50,7 @@ public class TypedOptionsTests
         Assert.Contains("public string DisplayOrName => DisplayName ?? Name;", text);
         Assert.Contains("public bool IsLeaf { get; }", text);
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
         var appText = app.GetText().ToString();
         Assert.Contains("public static readonly global::System.Collections.Generic.IReadOnlyDictionary<string, PermissionDescriptor> ByCode", appText);
         Assert.Contains("public static readonly global::System.Collections.Generic.IReadOnlyList<string> AllCodes", appText);

@@ -47,7 +47,7 @@ internal static class SourceBuilders
         sb.AppendLine("#nullable enable");
         sb.AppendLine($"namespace {ns}.Security;");
         sb.AppendLine();
-        sb.AppendLine("public static partial class Permissions");
+        sb.AppendLine("public static partial class AppPermissions");
         sb.AppendLine("{");
 
         foreach (var g in model.RootGroups)

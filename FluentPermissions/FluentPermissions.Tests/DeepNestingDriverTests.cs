@@ -42,7 +42,7 @@ public class DeepNestingDriverTests
         var driver = TestCompilationHelper.CreateDriver();
         var result = driver.RunGenerators(compilation).GetRunResult();
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
         var appText = app.GetText().ToString();
 
         Assert.Contains("public const string A_A1_A1a_X = \"APP:A:A1:A1a:X\";", appText);

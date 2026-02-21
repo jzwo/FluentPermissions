@@ -7,16 +7,16 @@ public static class Program
 {
     public static void Main()
     {
-        Console.WriteLine($"Users.Create = {Permissions.System_Users_Create}");
-        Console.WriteLine($"Users.Delete = {Permissions.System_Users_Delete}");
-        Console.WriteLine($"Roles.Assign = {Permissions.System_Roles_Assign}");
+        Console.WriteLine($"Users.Create = {AppPermissions.System_Users_Create}");
+        Console.WriteLine($"Users.Delete = {AppPermissions.System_Users_Delete}");
+        Console.WriteLine($"Roles.Assign = {AppPermissions.System_Roles_Assign}");
 
         Console.WriteLine("All descriptors:");
-        foreach (var item in Permissions.All)
+        foreach (var item in AppPermissions.All)
             Console.WriteLine($"- {item.Code} | {item.Name} | {item.DisplayOrName} | {item.Parent} | Leaf={item.IsLeaf}");
 
         Console.WriteLine("All codes:");
-        foreach (var code in Permissions.GetAllCodes())
+        foreach (var code in AppPermissions.GetAllCodes())
             Console.WriteLine($"- {code}");
     }
 }

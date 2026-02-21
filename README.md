@@ -8,17 +8,17 @@ You define permissions with a fluent DSL, and get compile-time generated constan
 ## What It Generates
 
 - Namespace: `$(AssemblyName).Security`
-- Entry type: `public static partial class Permissions`
+- Entry type: `public static partial class AppPermissions`
 - Flat permission code constants
-- Read-only descriptors: `Permissions.All`
+- Read-only descriptors: `AppPermissions.All`
 - Common lookup/query members:
-  - `Permissions.ByCode`
-  - `Permissions.AllCodes`, `Permissions.GetAllCodes()`
-  - `Permissions.Contains(code)`
-  - `Permissions.TryGet(code, out descriptor)`
-  - `Permissions.GetByCode(code)`
-  - `Permissions.GetChildren(parentCode)`
-  - `Permissions.GetLeaves()`
+  - `AppPermissions.ByCode`
+  - `AppPermissions.AllCodes`, `AppPermissions.GetAllCodes()`
+  - `AppPermissions.Contains(code)`
+  - `AppPermissions.TryGet(code, out descriptor)`
+  - `AppPermissions.GetByCode(code)`
+  - `AppPermissions.GetChildren(parentCode)`
+  - `AppPermissions.GetLeaves()`
 
 ## Repository Layout
 
@@ -86,15 +86,15 @@ public sealed class AppPermissionDefinition : IPermissionRegistrar<SampleOptions
 ```csharp
 using MyApp.Security;
 
-var code = Permissions.System_Users_Create; // APP:System:Users:Create
+var code = AppPermissions.System_Users_Create; // APP:System:Users:Create
 
-if (Permissions.TryGet(code, out var descriptor))
+if (AppPermissions.TryGet(code, out var descriptor))
 {
     Console.WriteLine(descriptor!.DisplayOrName);
     Console.WriteLine(descriptor.Parent);
 }
 
-foreach (var c in Permissions.GetAllCodes())
+foreach (var c in AppPermissions.GetAllCodes())
     Console.WriteLine(c);
 ```
 
@@ -104,7 +104,7 @@ Use `PermissionGenerationOptionsAttribute` to control whether groups themselves 
 
 - Default: `true`
 - If `false`:
-  - group descriptors are not emitted into `Permissions.All`
+  - group descriptors are not emitted into `AppPermissions.All`
   - group constants are not emitted
   - only leaf permission constants/descriptors remain
 

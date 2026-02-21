@@ -8,17 +8,17 @@ FluentPermissions 是一个基于 Roslyn 增量生成器的 .NET 权限建模工
 ## 生成内容
 
 - 命名空间：`$(AssemblyName).Security`
-- 入口类型：`public static partial class Permissions`
+- 入口类型：`public static partial class AppPermissions`
 - 扁平常量
-- 只读描述集合：`Permissions.All`
+- 只读描述集合：`AppPermissions.All`
 - 常用查询能力：
-  - `Permissions.ByCode`
-  - `Permissions.AllCodes`、`Permissions.GetAllCodes()`
-  - `Permissions.Contains(code)`
-  - `Permissions.TryGet(code, out descriptor)`
-  - `Permissions.GetByCode(code)`
-  - `Permissions.GetChildren(parentCode)`
-  - `Permissions.GetLeaves()`
+  - `AppPermissions.ByCode`
+  - `AppPermissions.AllCodes`、`AppPermissions.GetAllCodes()`
+  - `AppPermissions.Contains(code)`
+  - `AppPermissions.TryGet(code, out descriptor)`
+  - `AppPermissions.GetByCode(code)`
+  - `AppPermissions.GetChildren(parentCode)`
+  - `AppPermissions.GetLeaves()`
 
 ## 项目结构
 
@@ -86,15 +86,15 @@ public sealed class AppPermissionDefinition : IPermissionRegistrar<SampleOptions
 ```csharp
 using MyApp.Security;
 
-var code = Permissions.System_Users_Create; // APP:System:Users:Create
+var code = AppPermissions.System_Users_Create; // APP:System:Users:Create
 
-if (Permissions.TryGet(code, out var descriptor))
+if (AppPermissions.TryGet(code, out var descriptor))
 {
     Console.WriteLine(descriptor!.DisplayOrName);
     Console.WriteLine(descriptor.Parent);
 }
 
-foreach (var c in Permissions.GetAllCodes())
+foreach (var c in AppPermissions.GetAllCodes())
     Console.WriteLine(c);
 ```
 
@@ -104,7 +104,7 @@ foreach (var c in Permissions.GetAllCodes())
 
 - 默认：`true`
 - 当设为 `false` 时：
-  - `Permissions.All` 不生成组节点 descriptor
+  - `AppPermissions.All` 不生成组节点 descriptor
   - 不生成组常量 key
   - 仅保留叶子权限常量与 descriptor
 

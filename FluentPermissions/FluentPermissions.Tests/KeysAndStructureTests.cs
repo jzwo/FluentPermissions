@@ -57,14 +57,14 @@ public class KeysAndStructureTests
             string.Join(Environment.NewLine, runResult.Diagnostics.Select(d => d.ToString())));
 
         var files = runResult.GeneratedTrees.Select(t => Path.GetFileName(t.FilePath)).ToArray();
-        Assert.Contains("Permissions.g.cs", files);
+        Assert.Contains("AppPermissions.g.cs", files);
         Assert.Contains("FluentPermissions.g.Models.cs", files);
 
-        var appTree = runResult.GeneratedTrees.First(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var appTree = runResult.GeneratedTrees.First(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
         var appText = appTree.GetText().ToString();
 
         Assert.Contains("namespace GeneratorDriver_Generic_Test.Security;", appText);
-        Assert.Contains("public static partial class Permissions", appText);
+        Assert.Contains("public static partial class AppPermissions", appText);
         Assert.DoesNotContain("public const string System = \"APP:System\";", appText);
         Assert.DoesNotContain("public const string System_Users = \"APP:System:Users\";", appText);
         Assert.Contains("public const string System_Users_Create = \"APP:System:Users:Create\";", appText);
@@ -108,7 +108,7 @@ public class KeysAndStructureTests
         var driver = TestCompilationHelper.CreateDriver();
         var runResult = driver.RunGenerators(compilation).GetRunResult();
 
-        var appSyntax = runResult.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var appSyntax = runResult.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
         var appText = appSyntax.GetText().ToString();
 
         Assert.Contains("namespace GeneratorDriver_NonGeneric_Test.Security;", appText);

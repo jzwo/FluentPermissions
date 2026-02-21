@@ -35,7 +35,7 @@ public sealed class PermissionSourceGenerator : IIncrementalGenerator
             }
 
             spc.AddSource("FluentPermissions.g.Models.cs", SourceBuilders.BuildModels(models));
-            spc.AddSource("Permissions.g.cs", SourceBuilders.BuildApp(models));
+            spc.AddSource("AppPermissions.g.cs", SourceBuilders.BuildApp(models));
         });
     }
 

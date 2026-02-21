@@ -34,7 +34,7 @@ public class StringEscapingTests
         var driver = TestCompilationHelper.CreateDriver();
         var result = driver.RunGenerators(compilation).GetRunResult();
 
-        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("Permissions.g.cs"));
+        var app = result.GeneratedTrees.Single(t => t.FilePath.EndsWith("AppPermissions.g.cs"));
         var appText = app.GetText().ToString();
 
         Assert.Contains("\\\"Hi\\\"", appText); // 引号转义
